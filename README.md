@@ -1,4 +1,4 @@
-# PromptSmith 🔧✨
+# PromptSmith: Your Pocket Prompt Engineer 🔧✨
 
 **PromptSmith** is your pocket prompt engineer — a smart web app powered by Gemini AI that helps you craft high-quality prompts for text, image, and code generation. Built with a simple HTML/CSS frontend and FastAPI backend, PromptSmith transforms your creative ideas into structured, AI-ready prompts.
 
