@@ -20,7 +20,7 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/PromptSmith.git
+git clone https://github.com/dhinesh7-cit/PromptSmith.git
 cd PromptSmith
 ```
 
@@ -48,14 +48,15 @@ Open `index.html` in your browser or serve it with a local web server.
 ## 📁 Project Structure
 
 ```
-PromptSmith/
-├── static/
-│   └── style.css
-├── templates/
-│   └── index.html
-├── main.py
-├── .env
-└── README.md
+promptsmith/
+├── backend/
+│   └── main.py                  # FastAPI logic + Gemini integration
+├── frontend/
+│   ├── index.html               # Main HTML structure for the UI
+│   ├── styles.css               # All CSS styles for UI, themes, and animated background
+│   └── script.js                # JavaScript for UI logic, API calls, and dynamic background animation
+├── .env                         # Stores your GEMINI_API_KEY (YOU CREATE THIS MANUALLY)
+└── requirements.txt
 ```
 
 ---
