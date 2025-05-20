@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptSmith ✨ Modern Prompts</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-sky"> <canvas id="dynamicBackgroundCanvas"></canvas>
+
+    <div class="theme-switcher">
+        <button id="themeToggleBtn" aria-label="Toggle theme">
+            <i class="fas fa-adjust"></i>
+        </button>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-rocket"></i> PromptSmith <sup class="modern-sup">◆</sup></h1>
+            <p>Engineer precise prompts for your AI applications.</p>
+        </header>
+
+        <main>
+            <section class="input-section card">
+                <label for="userGoal" class="input-label"><i class="fas fa-bullseye"></i> Your Objective:</label>
+                <div class="textarea-wrapper">
+                    <textarea id="userGoal" rows="5" placeholder="e.g., generate a Python script for data visualization, create a marketing copy for a new tech product..."></textarea>
+                    <span class="char-counter" id="charCounter">0 / 500</span>
+                </div>
+
+                <div class="radio-group-container">
+                    <fieldset class="radio-group">
+                        <legend class="radio-legend">Generation Focus:</legend>
+                        <div class="radio-options">
+                            <div class="radio-option">
+                                <input type="radio" id="textGeneration" name="generationType" value="text" checked>
+                                <label for="textGeneration"><i class="fas fa-file-lines"></i> Text</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="imageGeneration" name="generationType" value="image">
+                                <label for="imageGeneration"><i class="fas fa-image"></i> Image</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="codeGeneration" name="generationType" value="code">
+                                <label for="codeGeneration"><i class="fas fa-code"></i> Code</label>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="radio-group">
+                        <legend class="radio-legend">Target Model (Primary):</legend>
+                        <div class="radio-options">
+                            <div class="radio-option">
+                                <input type="radio" id="geminiModel" name="modelType" value="gemini" checked>
+                                <label for="geminiModel">Gemini</label>
+                            </div>
+                             <div class="radio-option">
+                                <input type="radio" id="chatgptModel" name="modelType" value="chatgpt">
+                                <label for="chatgptModel">ChatGPT</label>
+                            </div>
+                             <div class="radio-option">
+                                <input type="radio" id="copilotModel" name="modelType" value="copilot">
+                                <label for="copilotModel">Copilot</label>
+                            </div>
+                             <div class="radio-option">
+                                <input type="radio" id="deepseekModel" name="modelType" value="deepseek">
+                                <label for="deepseekModel">Deepseek</label>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+
+                <button id="generateButton" class="cta-button">
+                    <span class="button-icon-wrapper"><i class="fas fa-paper-plane"></i></span>
+                    <span class="button-text">Generate Prompts</span>
+                </button>
+            </section>
+
+            <div id="loadingIndicator" class="loading-overlay" style="display: none;">
+                <div class="aesthetic-loader-wrapper">
+                    <div class="loader-pulse-ring"></div>
+                    <div class="loader-sparkle s1"></div>
+                    <div class="loader-sparkle s2"></div>
+                    <div class="loader-sparkle s3"></div>
+                    <div class="loader-sparkle s4"></div>
+                </div>
+                <p class="loader-text">Processing Request...</p>
+            </div>
+
+            <div id="errorDisplay" class="error-message card" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i> <span id="errorMessageText"></span>
+            </div>
+
+            <section id="resultsSection" style="display: none;">
+                <h2><i class="fas fa-lightbulb"></i> Optimized Prompts</h2>
+
+                <div class="prompt-category">
+                    <h3><i class="fas fa-cogs"></i> Core Prompts</h3>
+                    <div class="prompt-card card" id="textPromptCard">
+                        <h4><i class="fas fa-align-left"></i> Text Prompt</h4>
+                        <pre><code id="textPrompt"></code></pre>
+                        <button class="copy-btn" data-clipboard-target="#textPrompt" title="Copy text prompt" aria-label="Copy text prompt">
+                            <i class="far fa-copy"></i> <span>Copy</span>
+                        </button>
+                    </div>
+                    <div class="prompt-card card" id="imagePromptCard">
+                        <h4><i class="fas fa-camera-retro"></i> Image Prompt</h4>
+                        <pre><code id="imagePrompt"></code></pre>
+                        <button class="copy-btn" data-clipboard-target="#imagePrompt" title="Copy image prompt" aria-label="Copy image prompt">
+                            <i class="far fa-copy"></i> <span>Copy</span>
+                        </button>
+                    </div>
+                    <div class="prompt-card card" id="codePromptCard" style="display: none;">
+                        <h4><i class="fas fa-terminal"></i> Code Prompt</h4>
+                        <pre><code id="codePrompt"></code></pre>
+                        <button class="copy-btn" data-clipboard-target="#codePrompt" title="Copy code prompt" aria-label="Copy code prompt">
+                            <i class="far fa-copy"></i> <span>Copy</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="prompt-category">
+                    <h3><i class="fas fa-project-diagram"></i> Prompt Variations</h3>
+                    <div class="variation-group">
+                        <h4>Variation 1: Formal & Technical</h4>
+                        <div class="prompt-card card" id="var1TextPromptCard">
+                            <h5><i class="fas fa-align-left"></i> Text (Formal)</h5>
+                            <pre><code id="var1TextPrompt"></code></pre>
+                            <button class="copy-btn" data-clipboard-target="#var1TextPrompt" title="Copy formal text prompt" aria-label="Copy formal text prompt">
+                                <i class="far fa-copy"></i> <span>Copy</span>
+                            </button>
+                        </div>
+                        <div class="prompt-card card" id="var1ImagePromptCard">
+                            <h5><i class="fas fa-camera-retro"></i> Image (Formal)</h5>
+                            <pre><code id="var1ImagePrompt"></code></pre>
+                            <button class="copy-btn" data-clipboard-target="#var1ImagePrompt" title="Copy formal image prompt" aria-label="Copy formal image prompt">
+                                <i class="far fa-copy"></i> <span>Copy</span>
+                            </button>
+                        </div>
+                        <div class="prompt-card card" id="var1CodePromptCard" style="display: none;">
+                            <h5><i class="fas fa-terminal"></i> Code (Formal)</h5>
+                            <pre><code id="var1CodePrompt"></code></pre>
+                            <button class="copy-btn" data-clipboard-target="#var1CodePrompt" title="Copy formal code prompt" aria-label="Copy formal code prompt">
+                                <i class="far fa-copy"></i> <span>Copy</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="variation-group">
+                        <h4>Variation 2: Creative & Concise</h4>
+                        <div class="prompt-card card" id="var2TextPromptCard">
+                            <h5><i class="fas fa-align-left"></i> Text (Creative)</h5>
+                            <pre><code id="var2TextPrompt"></code></pre>
+                            <button class="copy-btn" data-clipboard-target="#var2TextPrompt" title="Copy creative text prompt" aria-label="Copy creative text prompt">
+                                <i class="far fa-copy"></i> <span>Copy</span>
+                            </button>
+                        </div>
+                        <div class="prompt-card card" id="var2ImagePromptCard">
+                            <h5><i class="fas fa-camera-retro"></i> Image (Creative)</h5>
+                            <pre><code id="var2ImagePrompt"></code></pre>
+                            <button class="copy-btn" data-clipboard-target="#var2ImagePrompt" title="Copy creative image prompt" aria-label="Copy creative image prompt">
+                                <i class="far fa-copy"></i> <span>Copy</span>
+                            </button>
+                        </div>
+                        <div class="prompt-card card" id="var2CodePromptCard" style="display: none;">
+                            <h5><i class="fas fa-terminal"></i> Code (Creative)</h5>
+                            <pre><code id="var2CodePrompt"></code></pre>
+                            <button class="copy-btn" data-clipboard-target="#var2CodePrompt" title="Copy creative code prompt" aria-label="Copy creative code prompt">
+                                <i class="far fa-copy"></i> <span>Copy</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; <span id="currentYear"></span> PromptSmith, Dhinesh, and AI. Engineered together.. <i class="fas fa-code-branch"></i></p>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
