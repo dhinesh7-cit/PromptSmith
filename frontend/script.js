@@ -113,9 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        console.log("User Goal:", goal);
-        console.log("Generation Type:", selectedGenerationType);
-        console.log("Model Type:", selectedModelType);
+        // console.log("User Goal:", goal);
+        // console.log("Generation Type:", selectedGenerationType);
+        // console.log("Model Type:", selectedModelType);
 
         errorDisplay.style.display = 'none';
         resultsSection.style.display = 'none';
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             displayResults(data, selectedGenerationType);
 
         } catch (error) {
-            console.error('Fetch error:', error);
+            console.error('[PROMPTSMITH APP] Fetch error:', error);
             displayError(error.message || 'An unexpected error occurred. Please try again.');
         } finally {
             loadingIndicator.classList.remove('visible');
@@ -184,7 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCodePromptField(promptElements.var2CodePrompt, promptCardElements.var2CodePromptCard, data.variation2_code_prompt, generationType);
 
         resultsSection.style.display = 'block';
-        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (resultsSection.scrollIntoView) {
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }
 
     function updateCodePromptField(element, cardElement, value, generationType) {
@@ -213,8 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const dynamicBgCanvas = document.getElementById('dynamicBackgroundCanvas');
     if (dynamicBgCanvas) {
         const dynamicBgCtx = dynamicBgCanvas.getContext('2d');
+        if (!dynamicBgCtx) {
+            console.error("[CANVAS DEBUG] Failed to get 2D context for canvas.");
+        }
         let dynamicBgAnimationFrameId;
-        let currentCanvasThemeInternal = 'light';
+        let currentCanvasThemeInternal = 'light'; // Default, will be updated by PromptSmith theme
 
         function canvasRandom(min, max) {
             return Math.random() * (max - min) + min;
@@ -225,50 +230,146 @@ document.addEventListener('DOMContentLoaded', () => {
             dynamicBgCanvas.height = window.innerHeight;
         }
 
+        // --- Light Mode: Clouds & Birds ---
         let clouds = [];
-        const MAX_CLOUDS_BG = 15;
+        const MAX_CLOUDS_BG = 8;
+        let birds = [];
+        const MAX_BIRDS_ON_SCREEN = 5;
+        const BIRD_FLOCK_SIZE_MIN = 2;
+        const BIRD_FLOCK_SIZE_MAX = 4;
+        let lastFlockSpawnTime = 0;
+        const FLOCK_SPAWN_INTERVAL = 10000; // ms
+
         class CloudBG {
             constructor() {
-                this.x = canvasRandom(-dynamicBgCanvas.width * 0.5, dynamicBgCanvas.width * 1.5);
-                this.y = canvasRandom(dynamicBgCanvas.height * 0.05, dynamicBgCanvas.height * 0.5);
-                this.speed = canvasRandom(0.05, 0.3);
-                this.radiusBase = canvasRandom(40, 100);
-                this.numPuffs = Math.floor(canvasRandom(3, 5));
+                this.x = canvasRandom(-dynamicBgCanvas.width * 0.7, dynamicBgCanvas.width * 1.2);
+                this.y = canvasRandom(dynamicBgCanvas.height * 0.05, dynamicBgCanvas.height * 0.35);
+                this.speed = canvasRandom(0.01, 0.04); // Very slow
                 this.puffs = [];
-                for (let i = 0; i < this.numPuffs; i++) {
-                    this.puffs.push({
-                        offsetX: canvasRandom(-this.radiusBase * 0.7, this.radiusBase * 0.7),
-                        offsetY: canvasRandom(-this.radiusBase * 0.2, this.radiusBase * 0.2),
-                        radius: canvasRandom(this.radiusBase * 0.4, this.radiusBase * 1.1)
-                    });
+                this.opacity = canvasRandom(1, 1);
+                this.baseWidth = canvasRandom(180, 400);
+                this.baseHeight = canvasRandom(60, 120);
+
+                const numCorePuffs = Math.floor(canvasRandom(5, 8));
+                for (let i = 0; i < numCorePuffs; i++) {
+                    const offsetX = canvasRandom(-this.baseWidth * 0.45, this.baseWidth * 0.45);
+                    const offsetY = canvasRandom(-this.baseHeight * 0.35, this.baseHeight * 0.35);
+                    const radiusX = canvasRandom(this.baseWidth * 0.2, this.baseWidth * 0.4);
+                    const radiusY = canvasRandom(this.baseHeight * 0.25, this.baseHeight * 0.55);
+                    this.puffs.push({ offsetX, offsetY, radiusX, radiusY });
                 }
-                this.opacity = canvasRandom(0.6, 0.9);
+                const numDetailPuffs = Math.floor(canvasRandom(4, 7));
+                for (let i = 0; i < numDetailPuffs; i++) {
+                    const corePuffIndex = Math.floor(canvasRandom(0, numCorePuffs));
+                    const corePuff = this.puffs[corePuffIndex];
+                     if (!corePuff) continue;
+                    const sidePlacement = Math.random() < 0.5 ? -1 : 1;
+                    const placementFactor = canvasRandom(0.4, 0.8);
+                    const offsetX = corePuff.offsetX + (corePuff.radiusX * sidePlacement * placementFactor * (Math.random() < 0.5 ? 1: 0));
+                    const offsetY = corePuff.offsetY + (corePuff.radiusY * sidePlacement * placementFactor * (Math.random() >= 0.5 ? 1: 0)) - canvasRandom(5,15) ;
+                    const radius = canvasRandom(this.baseWidth * 0.05, this.baseWidth * 0.15);
+                    this.puffs.push({ offsetX, offsetY, radiusX: radius, radiusY: radius * canvasRandom(0.7, 1.1)});
+                }
             }
             update() {
                 this.x += this.speed;
-                if (this.x - this.radiusBase * 2 > dynamicBgCanvas.width) {
-                    this.x = -this.radiusBase * 3;
-                    this.y = canvasRandom(dynamicBgCanvas.height * 0.05, dynamicBgCanvas.height * 0.5);
+                let minPuffX = Infinity;
+                this.puffs.forEach(p => minPuffX = Math.min(minPuffX, p.offsetX - p.radiusX));
+
+                if (this.x + minPuffX > dynamicBgCanvas.width) { // If leftmost part of cloud is off screen right
+                    let maxPuffXRelative = -Infinity; // Find rightmost extent of cloud relative to its x
+                    this.puffs.forEach(p => maxPuffXRelative = Math.max(maxPuffXRelative, p.offsetX + p.radiusX));
+                    this.x = -maxPuffXRelative - canvasRandom(50, 200); // Reset fully off-screen left
+                    this.y = canvasRandom(dynamicBgCanvas.height * 0.05, dynamicBgCanvas.height * 0.35);
                 }
             }
             draw() {
-                const cloudColor = getComputedStyle(document.documentElement).getPropertyValue('--canvas-cloud-color').trim() || 'rgba(255, 255, 255, 0.85)';
-                dynamicBgCtx.fillStyle = cloudColor.replace(/(\d(\.\d+)?)\)/, `${this.opacity})`);
-                dynamicBgCtx.beginPath();
+                let cloudColorString = getComputedStyle(document.documentElement).getPropertyValue('--canvas-cloud-color').trim();
+                if (!cloudColorString || cloudColorString === "''" || cloudColorString === "none") cloudColorString = 'rgba(255, 255, 255, 0.85)';
+
+                if ((cloudColorString.startsWith("'") && cloudColorString.endsWith("'")) || (cloudColorString.startsWith('"') && cloudColorString.endsWith('"'))) {
+                    cloudColorString = cloudColorString.substring(1, cloudColorString.length - 1);
+                }
+
+                const originalGlobalAlpha = dynamicBgCtx.globalAlpha;
+                dynamicBgCtx.globalAlpha = this.opacity;
+
+                let baseRGBFill = 'rgb(255,255,255)';
+                if (cloudColorString.startsWith('rgba')) {
+                    baseRGBFill = cloudColorString.substring(0, cloudColorString.lastIndexOf(',')) + ')';
+                    baseRGBFill = baseRGBFill.replace('rgba', 'rgb');
+                } else if (cloudColorString.startsWith('rgb') || cloudColorString.startsWith('#')) {
+                    baseRGBFill = cloudColorString;
+                }
+                dynamicBgCtx.fillStyle = baseRGBFill;
+
                 this.puffs.forEach(puff => {
-                    dynamicBgCtx.moveTo(this.x + puff.offsetX + puff.radius, this.y + puff.offsetY);
-                    dynamicBgCtx.arc(this.x + puff.offsetX, this.y + puff.offsetY, puff.radius, 0, Math.PI * 2);
+                    dynamicBgCtx.beginPath();
+                    dynamicBgCtx.ellipse(this.x + puff.offsetX, this.y + puff.offsetY, puff.radiusX, puff.radiusY, 0, 0, Math.PI * 2);
+                    dynamicBgCtx.fill();
                 });
-                dynamicBgCtx.closePath();
-                dynamicBgCtx.fill();
+                dynamicBgCtx.globalAlpha = originalGlobalAlpha;
             }
         }
 
+        class Bird {
+            constructor(startX, startY) {
+                this.x = startX;
+                this.y = startY;
+                this.speedX = canvasRandom(0.8, 2.2);
+                this.speedY = canvasRandom(-0.15, 0.15);
+                this.size = canvasRandom(6, 12);
+                this.wingPhase = canvasRandom(0, Math.PI * 2);
+                this.wingSpeed = canvasRandom(0.2, 0.35);
+                this.color = 'rgba(80, 80, 80, 0.75)';
+                this.flapAmplitude = this.size * canvasRandom(0.4, 0.6);
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.wingPhase = (this.wingPhase + this.wingSpeed); // Let it grow, sin/cos will handle periodicity
+            }
+            draw() {
+                dynamicBgCtx.strokeStyle = this.color;
+                dynamicBgCtx.lineWidth = Math.max(1, this.size / 5);
+                dynamicBgCtx.beginPath();
+                const wingYOffset = Math.sin(this.wingPhase) * this.flapAmplitude;
+                dynamicBgCtx.moveTo(this.x - this.size, this.y + wingYOffset);
+                dynamicBgCtx.lineTo(this.x, this.y);
+                dynamicBgCtx.lineTo(this.x + this.size, this.y + wingYOffset);
+                dynamicBgCtx.stroke();
+            }
+            isOffscreen() {
+                return this.x > dynamicBgCanvas.width + this.size * 2 || this.x < -this.size * 2 ||
+                       this.y > dynamicBgCanvas.height + this.size * 2 || this.y < -this.size * 2;
+            }
+        }
+
+        function spawnFlock() {
+            const flockSize = Math.floor(canvasRandom(BIRD_FLOCK_SIZE_MIN, BIRD_FLOCK_SIZE_MAX + 1));
+            const startY = canvasRandom(dynamicBgCanvas.height * 0.1, dynamicBgCanvas.height * 0.5);
+            const startX = -canvasRandom(50, 150);
+
+            // console.log(`[CANVAS DEBUG] Spawning flock of ${flockSize} birds.`);
+            for (let i = 0; i < flockSize; i++) {
+                if (birds.length < MAX_BIRDS_ON_SCREEN) {
+                    const birdX = startX - i * canvasRandom(15, 40);
+                    const birdY = startY + canvasRandom(-30, 30);
+                    birds.push(new Bird(birdX, birdY));
+                }
+            }
+            lastFlockSpawnTime = performance.now();
+        }
+
         function initLightModeCanvas() {
+            // console.log('[CANVAS DEBUG] Initializing Light Mode Canvas elements...');
             clouds = [];
             for (let i = 0; i < MAX_CLOUDS_BG; i++) {
                 clouds.push(new CloudBG());
             }
+            birds = [];
+            spawnFlock();
+            // console.log(`[CANVAS DEBUG] Clouds: ${clouds.length}, Birds: ${birds.length}`);
         }
 
         function drawLightModeCanvasBackground() {
@@ -285,19 +386,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 cloud.update();
                 cloud.draw();
             });
+
+            let activeBirdsCount = 0;
+            birds.forEach(bird => {
+                bird.update();
+                bird.draw();
+                if (!bird.isOffscreen()) {
+                    activeBirdsCount++;
+                }
+            });
+            birds = birds.filter(bird => !bird.isOffscreen());
+
+            if (performance.now() - lastFlockSpawnTime > FLOCK_SPAWN_INTERVAL && activeBirdsCount < BIRD_FLOCK_SIZE_MIN && birds.length < MAX_BIRDS_ON_SCREEN) {
+                spawnFlock();
+            }
         }
 
+        // --- Dark Mode: Stars & Comets ---
         let stars = [];
         let comets = [];
         const MAX_STARS_BG = 150;
         const COMET_INTERVAL_BG = 2500;
         let lastCometTimeBG = 0;
-
         let blinkingStarIndex = -1;
         let blinkStartTime = 0;
         const BLINK_DURATION = 1200;
         const INTER_BLINK_DELAY = 150;
-        const STAR_DIM_OPACITY_FACTOR = 0.1;
+        const STAR_DIM_OPACITY_FACTOR = 0.3;
 
         class StarBG {
             constructor() {
@@ -308,7 +423,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.currentOpacity = this.baseOpacity * STAR_DIM_OPACITY_FACTOR;
             }
             draw() {
-                const starColorCSS = getComputedStyle(document.documentElement).getPropertyValue('--canvas-star-color').trim() || 'rgba(255, 255, 224, 0.9)';
+                let starColorCSS = getComputedStyle(document.documentElement).getPropertyValue('--canvas-star-color').trim();
+                 if (!starColorCSS || starColorCSS === "''" || starColorCSS === "none") starColorCSS = 'rgba(255, 255, 224, 0.9)';
+
+                if ((starColorCSS.startsWith("'") && starColorCSS.endsWith("'")) || (starColorCSS.startsWith('"') && starColorCSS.endsWith('"'))) {
+                    starColorCSS = starColorCSS.substring(1, starColorCSS.length - 1);
+                }
+
                 dynamicBgCtx.beginPath();
                 dynamicBgCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 const finalOpacity = Math.max(0, Math.min(1, this.currentOpacity));
@@ -317,6 +438,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     finalColor = starColorCSS.replace(/,\s*[\d.]+\)$/, `, ${finalOpacity})`);
                 } else if (starColorCSS.startsWith('rgb')) {
                     finalColor = starColorCSS.replace('rgb', 'rgba').replace(')', `, ${finalOpacity})`);
+                } else if (starColorCSS.startsWith('#')) { // Basic hex to rgba for opacity
+                    let r = 0, g = 0, b = 0;
+                    if (finalColor.length === 4) { // #RGB
+                        r = parseInt(finalColor[1] + finalColor[1], 16);
+                        g = parseInt(finalColor[2] + finalColor[2], 16);
+                        b = parseInt(finalColor[3] + finalColor[3], 16);
+                    } else if (finalColor.length === 7) { // #RRGGBB
+                        r = parseInt(finalColor.substring(1, 3), 16);
+                        g = parseInt(finalColor.substring(3, 5), 16);
+                        b = parseInt(finalColor.substring(5, 7), 16);
+                    }
+                    finalColor = `rgba(${r},${g},${b},${finalOpacity})`;
                 }
                 dynamicBgCtx.fillStyle = finalColor;
                 dynamicBgCtx.fill();
@@ -381,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (progress < 1) {
                     const amplitude = activeStar.baseOpacity * (1 - STAR_DIM_OPACITY_FACTOR);
                     const dimLevel = activeStar.baseOpacity * STAR_DIM_OPACITY_FACTOR;
-                    activeStar.currentOpacity = dimLevel + amplitude * Math.sin(progress * Math.PI);
+                    activeStar.currentOpacity = dimLevel + amplitude * Math.sin(progress * Math.PI) * 2; 
                 } else {
                     activeStar.currentOpacity = activeStar.baseOpacity * STAR_DIM_OPACITY_FACTOR;
                     blinkingStarIndex = -1;
@@ -425,6 +558,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function animationLoopDynamicBg(timestamp) {
+            if (!dynamicBgCtx) {
+                // console.error("[CANVAS DEBUG] Context lost or not initialized in animation loop.");
+                return;
+            }
             dynamicBgCtx.clearRect(0, 0, dynamicBgCanvas.width, dynamicBgCanvas.height);
             if (currentCanvasThemeInternal === 'light') {
                 drawLightModeCanvasBackground();
@@ -435,9 +572,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function setCanvasTheme(themeName) {
+            // console.log(`[CANVAS DEBUG] setCanvasTheme called with: ${themeName}`);
             const newInternalTheme = (themeName === 'theme-deep') ? 'dark' : 'light';
             let themeChanged = currentCanvasThemeInternal !== newInternalTheme;
             currentCanvasThemeInternal = newInternalTheme;
+            // console.log(`[CANVAS DEBUG] Internal canvas theme set to: ${currentCanvasThemeInternal}, Changed: ${themeChanged}`);
 
             if (themeChanged) {
                 if (currentCanvasThemeInternal === 'light') {
@@ -448,7 +587,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (!dynamicBgAnimationFrameId) {
                 if (dynamicBgCanvas.width > 0 && dynamicBgCanvas.height > 0) {
+                    // console.log('[CANVAS DEBUG] Starting animation loop.');
                     animationLoopDynamicBg(performance.now());
+                } else {
+                    // console.warn('[CANVAS DEBUG] Canvas has no dimensions, not starting animation loop.');
                 }
             }
         }
@@ -456,28 +598,44 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDynamicBackgroundCanvasDimensions();
 
         window.addEventListener('resize', () => {
+            // console.log('[CANVAS DEBUG] Window resize detected.');
             setupDynamicBackgroundCanvasDimensions();
-            if (currentCanvasThemeInternal === 'light') initLightModeCanvas();
-            else initDarkModeCanvas();
+            if (currentCanvasThemeInternal === 'light') {
+                // console.log('[CANVAS DEBUG] Re-initializing light mode elements on resize.');
+                initLightModeCanvas();
+            } else {
+                // console.log('[CANVAS DEBUG] Re-initializing dark mode elements on resize.');
+                initDarkModeCanvas();
+            }
         });
 
         window.updateDynamicBackgroundTheme = setCanvasTheme;
 
-    } // End of if(dynamicBgCanvas)
+    } else {
+        // console.warn("[CANVAS DEBUG] Canvas element with ID 'dynamicBackgroundCanvas' not found.");
+    }
+    // ==================================================
+    // END: DYNAMIC ANIMATED BACKGROUND SCRIPT
+    // ==================================================
 
     const setInitialPromptSmithTheme = () => {
         let savedTheme = localStorage.getItem('modernTheme') || 'theme-sky';
         if (!localStorage.getItem('modernTheme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             savedTheme = 'theme-deep';
         }
+        // console.log(`[PROMPTSMITH THEME] Initial theme from storage/system: ${savedTheme}`);
         body.className = savedTheme;
         themeToggleBtn.innerHTML = savedTheme === 'theme-deep' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
         themeToggleBtn.setAttribute('aria-label', savedTheme === 'theme-deep' ? 'Switch to Sky Theme' : 'Switch to Deep Theme');
 
         if (window.updateDynamicBackgroundTheme) {
+            // console.log('[PROMPTSMITH THEME] Calling window.updateDynamicBackgroundTheme for initial theme.');
             window.updateDynamicBackgroundTheme(savedTheme);
-        } else if (dynamicBgCanvas && typeof setCanvasTheme === "function") { // Check if setCanvasTheme is defined directly
+        } else if (dynamicBgCanvas && typeof setCanvasTheme === "function") {
+             // console.warn('[PROMPTSMITH THEME] window.updateDynamicBackgroundTheme not found, calling setCanvasTheme directly.');
             setCanvasTheme(savedTheme);
+        } else {
+            // console.warn('[PROMPTSMITH THEME] Canvas theme update function not available.');
         }
     };
 
@@ -490,6 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
             newTheme = 'theme-sky';
             themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
         }
+        // console.log(`[PROMPTSMITH THEME] Theme toggled to: ${newTheme}`);
         body.className = newTheme;
         localStorage.setItem('modernTheme', newTheme);
         themeToggleBtn.setAttribute('aria-label', newTheme === 'theme-deep' ? 'Switch to Sky Theme' : 'Switch to Deep Theme');
