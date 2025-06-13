@@ -135,3 +135,7 @@ async def generate_prompts_endpoint(user_goal: UserGoal):
         if "API key not valid" in str(e):
             raise HTTPException(status_code=401, detail="Invalid Gemini API Key.")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+@app.get("/ping")
+async def ping():
+    return {"status": "ok"}
+
