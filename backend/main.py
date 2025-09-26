@@ -57,7 +57,7 @@ class OptimizedPrompts(BaseModel):
     variation2_code_prompt: str | None = None
 
 # Gemini Model
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 # Prompt instructions
 PROMPT_ENGINEERING_INSTRUCTIONS = """
@@ -138,5 +138,6 @@ async def generate_prompts_endpoint(user_goal: UserGoal):
 @app.head("/")
 def head_index():
     return
+
 
 
